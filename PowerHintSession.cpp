@@ -125,17 +125,16 @@ bool PowerHintSessionImpl::taskLoadBoost(int loadType) {
 }
 
 bool isSessionAlive(PowerHintSessionImpl* session) {
+    std::lock_guard<std::mutex> lock(mSessionLock);
     if(mPowerHintSessions.find(session) != mPowerHintSessions.end())
         return true;
     return false;
 }
 
 bool isSessionActive(PowerHintSessionImpl* session) {
-    if(!isSessionAlive(session))
-        return false;
-    if(mPowerHintSessions[session] == 1)
-        return true;
-    return false;
+    std::lock_guard<std::mutex> lock(mSessionLock);
+    const auto it = mPowerHintSessions.find(session);
+    return it != mPowerHintSessions.end() && it->second == 1;
 }
 
 std::shared_ptr<aidl::android::hardware::power::IPowerHintSession> setPowerHintSession(int32_t tgid, int32_t uid, const std::vector<int32_t>& threadIds, int64_t durationNanos){
@@ -311,6 +310,9 @@ ndk::ScopedAStatus PowerHintSessionImpl::updateTargetWorkDuration(int64_t in_tar
 }
 
 ndk::ScopedAStatus PowerHintSessionImpl::reportActualWorkDuration(const std::vector<::aidl::android::hardware::power::WorkDuration>& in_durations){
+    if (!isSessionActive(this)) {
+        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
+    }
     if(mLaminar && !in_durations.empty()) {
         const auto* longest = &in_durations[0];
         for(const auto& duration : in_durations) {
@@ -347,8 +349,12 @@ ndk::ScopedAStatus PowerHintSessionImpl::reportActualWorkDuration(const std::vec
 ndk::ScopedAStatus PowerHintSessionImpl::pause(){
     if(mEnableDebug) LOG(INFO) << "PowerHintSessionImpl::pause ";
     if(isSessionAlive(this)) {
-        if(mLaminar) mLaminar->reset();
-        sendHint(aidl::android::hardware::power::SessionHint::CPU_LOAD_RESET);
+        if(mLaminar) {
+            // A pause releases the floor; only new work should rebaseline it.
+            mLaminar->reset();
+        } else {
+            sendHint(aidl::android::hardware::power::SessionHint::CPU_LOAD_RESET);
+        }
         setSessionActivity(this, false);
     }
     return ndk::ScopedAStatus::ok();
@@ -365,8 +371,11 @@ ndk::ScopedAStatus PowerHintSessionImpl::resume(){
 ndk::ScopedAStatus PowerHintSessionImpl::close(){
     if(mEnableDebug) LOG(INFO) << "PowerHintSessionImpl::close ";
     if(isSessionAlive(this)) {
-        if(mLaminar) mLaminar->reset();
-        sendHint(aidl::android::hardware::power::SessionHint::CPU_LOAD_RESET);
+        if(mLaminar) {
+            mLaminar->reset();
+        } else {
+            sendHint(aidl::android::hardware::power::SessionHint::CPU_LOAD_RESET);
+        }
         releaseLowCpuUtil();
         releaseThreadPipeline();
         mThreadIds.clear();

@@ -273,7 +273,7 @@ extern bool setDeviceSpecificMode(Mode type, bool enabled);
  ndk::ScopedAStatus Power::getSupportInfo(SupportInfo* _aidl_return) {
      static SupportInfo supportInfo = {
                                      .usesSessions = true,
-                                     .modes = 0b10001100,
+                                     .modes = 0b11001100,
                                      .boosts = 0b0,
                                      .sessionHints = 0b1100001111,
                                      .sessionModes = 0b0011,

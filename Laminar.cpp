@@ -29,30 +29,30 @@
 namespace {
 
 constexpr int kMaxFloor = 1024;
-constexpr int kCeiling = 640;
+constexpr int kCeiling = 448;
 constexpr int kFutileFrames = 8;
 // A frame over target raises the floor by this much of the full range per unit of overrun.
 constexpr double kRaiseGain = 1.5;
 // Frames with room lower it more gently, so one quick frame does not drop a busy session.
-constexpr double kLowerGain = 0.4;
+constexpr double kLowerGain = 0.6;
 // Frames under this share of the target count as having room.
 constexpr double kRoomRatio = 0.75;
 constexpr int kQuietFramesBeforeLowering = 2;
 constexpr int kMinStep = 24;
 constexpr int kApplyThreshold = 16;
-constexpr int kLoadUpFloor = 512;
+constexpr int kLoadUpFloor = 384;
 // A session that stops reporting frames is idle; its floor drops back after this long.
 constexpr auto kIdleReset = std::chrono::milliseconds(150);
 // Floor for the first frames after CPU_LOAD_RESET, which HWUI sends when it starts drawing again
 // after 100 ms without frames (a new touch, fling or animation). Those frames have no history to
 // react to, so starting them at 0 made every gesture miss its first frames.
-constexpr int kResetFloor = 384;
+constexpr int kResetFloor = 256;
 // A burst that starts this soon after the previous one ended likely needs a similar floor.
 constexpr auto kBurstMemory = std::chrono::milliseconds(1000);
 
 // Start GPU votes at a share of this device's maximum clock, then climb its supported levels.
 // Frequencies themselves are discovered from the driver, never copied from another SoC.
-constexpr int kGpuMinFloorPercent = 45;
+constexpr int kGpuMinFloorPercent = 30;
 // Frames with GPU time under this share of the target count as having room.
 constexpr double kGpuRoomRatio = 0.5;
 // GPU limited: SurfaceFlinger composes on the GPU after its CPU work, so both add up.
@@ -60,7 +60,7 @@ constexpr double kGpuLateShare = 0.5;
 // Lower one step only after about 200 ms of easy frames at 120 Hz
 constexpr int kGpuQuietFramesBeforeLowering = 24;
 // Each GPU vote expires independently, including when CPU-only reports keep a session alive.
-constexpr int kGpuLeaseMs = 250;
+constexpr int kGpuLeaseMs = 150;
 constexpr const char* kGpuMinFreqPath = "/sys/class/kgsl/kgsl-3d0/devfreq/min_freq";
 // The vote lasts only while frames keep being reported
 constexpr int kExpensiveRenderingLeaseMs = 100;
